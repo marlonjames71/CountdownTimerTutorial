@@ -5,27 +5,78 @@
 //  Created by Marlon Raskin on 2024-12-16.
 //
 
+import Combine
+import SwiftUI
 import UIKit
 
 class ViewController: UIViewController {
+	
+	private let timerManager = TimerManager()
+	private var cancellable: AnyCancellable?
 
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		view.backgroundColor = .backgroundPrimary
 		
-		view.addSubview(buttonContainer)
-		buttonContainer.translatesAutoresizingMaskIntoConstraints = false
+		view.addSubview(contentContainer)
+		contentContainer.translatesAutoresizingMaskIntoConstraints = false
 		
 		NSLayoutConstraint.activate([
-			buttonContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-			buttonContainer.leadingAnchor
-				.constraint(equalTo: view.leadingAnchor, constant: Layout.contentStackPadding),
-			buttonContainer.trailingAnchor
-				.constraint(equalTo: view.trailingAnchor, constant: -Layout.contentStackPadding)
+			contentContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+			contentContainer.leadingAnchor
+				.constraint(equalTo: view.leadingAnchor),
+			contentContainer.trailingAnchor
+				.constraint(equalTo: view.trailingAnchor)
 		])
 		
 		// Button UI Updates
+		
+		cancellable = timerManager.$state
+			.sink { [weak self] state in
+				guard let self else { return }
+				
+				let (title, bgColor): (String, UIColor) = switch state {
+				case .ready:
+					("Start", .trim)
+				case .running:
+					("Pause", UIColor(.red))
+				case .paused:
+					("Resume", .trim)
+				}
+				
+				let startStopTitleColor: UIColor = state == .running ? .lightTextPrimary : .buttonText
+				
+				startStopButton.configuration?.attributedTitle = headlineStyledString(forTitle: title)
+				startStopButton.configuration?.baseBackgroundColor = bgColor
+				startStopButton.configuration?.baseForegroundColor = startStopTitleColor
+				
+				resetButton.isEnabled = state != .running
+			}
 	}
+	
+	private lazy var timerView: UIView = {
+		let timerView = TimerView(manager: timerManager)
+		let hostingController = UIHostingController(rootView: timerView)
+		hostingController.view.backgroundColor = .clear
+		hostingController.sizingOptions = .intrinsicContentSize
+		addChild(hostingController)
+		hostingController.didMove(toParent: self)
+		return hostingController.view
+	}()
+	
+	private lazy var contentContainer: UIStackView = {
+		let stack = UIStackView(arrangedSubviews: [timerView, buttonContainer])
+		stack.axis = .vertical
+		stack.spacing = Layout.contentStackSpacing
+		stack.isLayoutMarginsRelativeArrangement = true
+		stack.layoutMargins = .init(
+			top: 0,
+			left: Layout.contentStackPadding,
+			bottom: 0,
+			right: Layout.contentStackPadding
+		)
+		return stack
+	}()
 	
 	private lazy var buttonContainer: UIStackView = {
 		let stack = UIStackView(arrangedSubviews: [resetButton, startStopButton])
@@ -59,7 +110,7 @@ class ViewController: UIViewController {
 	private lazy var resetButton: UIButton = {
 		let config = buttonConfig(title: "Reset", titleColor: .buttonText, bgColor: UIColor(.cyan))
 		let button = UIButton(configuration: config, primaryAction: .init { [weak self] _ in
-			print("Reset Button Tapped")
+			self?.timerManager.stopTimer(reset: true)
 		})
 		return button
 	}()
@@ -67,7 +118,15 @@ class ViewController: UIViewController {
 	private lazy var startStopButton: UIButton = {
 		let config = buttonConfig(title: "Start", titleColor: .buttonText, bgColor: .trim)
 		let button = UIButton(configuration: config, primaryAction: .init { [weak self] _ in
-			print("Start/Stop Button Tapped")
+			guard let self else { return }
+			switch timerManager.state {
+			case .ready:
+				timerManager.startTimer()
+			case .running:
+				timerManager.stopTimer()
+			case .paused:
+				timerManager.resumeTimer()
+			}
 		})
 		return button
 	}()
@@ -77,5 +136,10 @@ extension ViewController {
 	enum Layout {
 		static let buttonStackSpacing: Double = 10
 		static let contentStackPadding: Double = 24
+		static let contentStackSpacing: Double = 50
 	}
+}
+
+#Preview {
+	ViewController()
 }
