@@ -34,15 +34,17 @@ struct TimerView: View {
 						value: manager.timeRemaining
 					)
 					.overlay {
-						Text("\(Int(max(0, manager.timeRemaining)))")
+						Text(manager.formattedTime())
 							.font(.largeTitle)
 							.fontWeight(.bold)
 							.monospaced()
-							.contentTransition(.numericText(countsDown: true))
+							.contentTransition(
+								manager.state != .running ? .numericText(countsDown: true) : .identity
+							)
 							.animation(.easeInOut, value: manager.timeRemaining)
 					}
 			}
-			.frame(width: 150, height: 150)
+			.frame(width: 250, height: 250)
 			.onReceive(manager.timerFinished) { _ in
 				isShowingAlert = true
 			}
@@ -52,22 +54,23 @@ struct TimerView: View {
 				}
 			}
 			
-			HStack(spacing: 30) {
-				stepper(step: 1)
-					.tint(.stepButtonColor1)
-				stepper(step: 5)
-					.tint(.stepButtonColor2)
+			SegmentedStepper(steps: 1, 5, 10, 20) { step in
+				timerValue += step
+			} onDecrement: { step in
+				let futureValue = timerValue - step
+				guard futureValue > 0 else { return }
+				timerValue -= step
 			}
 			.disabled(disableStepper)
 			.onChange(of: timerValue) { _, newValue in
-				manager.duration = TimeInterval(newValue)
-				manager.timeRemaining = TimeInterval(newValue)
+				manager.duration = .seconds(newValue)
+				manager.timeRemaining = .seconds(newValue)
 			}
 		}
 	}
 	
 	private var trimValue: Double {
-		manager.timeRemaining > 0 ? manager.timeRemaining / manager.duration : 0
+		manager.timeRemaining.components.seconds > 0 ? manager.timeRemaining / manager.duration : 0
 	}
 	
 	private var disableStepper: Bool {

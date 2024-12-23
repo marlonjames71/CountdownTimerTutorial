@@ -17,8 +17,8 @@ final class TimerManager: ObservableObject {
 	}
 	
 	@Published var state: TimerState = .ready
-	@Published var timeRemaining: TimeInterval = 10
-	@Published var duration: TimeInterval = 10
+	@Published var timeRemaining: Duration = .seconds(10)
+	@Published var duration: Duration = .seconds(10)
 	
 	private var endDate: Date?
 	
@@ -31,11 +31,23 @@ final class TimerManager: ObservableObject {
 	
 	// MARK: - PUBLIC
 	
+	func formattedTime() -> String {
+		timeRemaining
+			.formatted(
+				.time(
+					pattern: .minuteSecond(
+						padMinuteToLength: 2,
+						fractionalSecondsLength: 2
+					)
+				)
+			)
+	}
+	
 	// START TIMER
 	
 	func startTimer() {
-		guard state == .ready, duration > 0 else { return }
-		endDate = Date().addingTimeInterval(duration)
+		guard state == .ready, duration.components.seconds > 0 else { return }
+		endDate = Date().addingTimeInterval(Double(duration.components.seconds))
 		connectTimer()
 		state = .running
 	}
@@ -62,7 +74,7 @@ final class TimerManager: ObservableObject {
 	
 	func resumeTimer() {
 		guard state == .paused else { return }
-		endDate = Date().addingTimeInterval(timeRemaining)
+		endDate = Date().addingTimeInterval(Double(timeRemaining.components.seconds))
 		connectTimer()
 		state = .running
 	}
@@ -70,7 +82,7 @@ final class TimerManager: ObservableObject {
 	// MARK: - PRIVATE
 	
 	private func connectTimer() {
-		timerConnector = Timer.publish(every: 0.1, on: .main, in: .common)
+		timerConnector = Timer.publish(every: 0.01, on: .main, in: .common)
 			.autoconnect()
 			.sink { [weak self] currentDate in
 				guard let self, let endDate, state == .running else { return }
@@ -78,7 +90,7 @@ final class TimerManager: ObservableObject {
 				let timeRemaining = endDate.timeIntervalSince(currentDate)
 				
 				if timeRemaining > 0 {
-					self.timeRemaining = timeRemaining
+					self.timeRemaining = .seconds(timeRemaining)
 					print("Timer Fired – time remaining: \(timeRemaining)")
 				} else {
 					stopTimer(reset: true)

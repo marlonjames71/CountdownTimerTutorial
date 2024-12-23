@@ -23,10 +23,8 @@ class ViewController: UIViewController {
 		
 		NSLayoutConstraint.activate([
 			contentContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-			contentContainer.leadingAnchor
-				.constraint(equalTo: view.leadingAnchor),
-			contentContainer.trailingAnchor
-				.constraint(equalTo: view.trailingAnchor)
+			contentContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+			contentContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor)
 		])
 		
 		// Button UI Updates
